@@ -6,6 +6,7 @@ library flutter_cache_manager;
 import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
+import 'dart:typed_data';
 
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
@@ -13,7 +14,41 @@ import 'package:synchronized/synchronized.dart';
 
 import 'src/cache_object.dart';
 
-typedef Future<http.Response> FileFetcher(String url, { Map<String, String> headers });
+
+abstract class FileFetcherResponse {
+  get statusCode;
+
+  Uint8List get bodyBytes => null;
+
+  bool hasHeader(String name);
+  String header(String name);
+}
+
+class HttpFileFetcherResponse implements FileFetcherResponse {
+  http.Response _response;
+
+  HttpFileFetcherResponse(this._response);
+
+  @override
+  bool hasHeader(String name) {
+    return _response.headers.containsKey(name);
+  }
+
+  @override
+  String header(String name) {
+    return _response.headers[name];
+  }
+
+  @override
+  Uint8List get bodyBytes => _response.bodyBytes;
+
+  @override
+  // TODO: implement statusCode
+  get statusCode => _response.bodyBytes;
+
+}
+
+typedef Future<FileFetcherResponse> FileFetcher(String url, { Map<String, String> headers });
 
 class CacheManager {
   static const _keyCacheData = "lib_cached_image_data";
@@ -273,13 +308,13 @@ class CacheManager {
       headers["If-None-Match"] = eTag;
     }
 
-    var response;
+    FileFetcherResponse response;
     try {
       response = await fileFetcher(url, headers: headers);
     } catch (e) {}
     if (response != null) {
       if (response.statusCode == 200) {
-        await newCache.setDataFromHeaders(response.headers);
+        await newCache.setDataFromHeaders(response);
 
         var filePath = await newCache.getFilePath();
         var folder = new File(filePath).parent;
@@ -291,7 +326,7 @@ class CacheManager {
         return newCache;
       }
       if (response.statusCode == 304) {
-        await newCache.setDataFromHeaders(response.headers);
+        await newCache.setDataFromHeaders(response);
         return newCache;
       }
     }
@@ -300,6 +335,6 @@ class CacheManager {
   }
 }
 
-  Future<http.Response> _defaultFileFetcher(String url, {Map<String, String> headers}) async {
-    return await http.get(url, headers: headers);
+  Future<FileFetcherResponse> _defaultFileFetcher(String url, {Map<String, String> headers}) async {
+    return HttpFileFetcherResponse(await http.get(url, headers: headers));
   }

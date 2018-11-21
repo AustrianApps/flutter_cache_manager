@@ -9,6 +9,8 @@ import 'package:path_provider/path_provider.dart';
 import 'package:synchronized/synchronized.dart';
 import 'package:uuid/uuid.dart';
 
+import '../flutter_cache_manager.dart';
+
 ///Cache information of one file
 class CacheObject {
   static const _keyFilePath = "relativePath";
@@ -83,12 +85,12 @@ class CacheObject {
     _map[_keyTouched] = touched.millisecondsSinceEpoch;
   }
 
-  setDataFromHeaders(Map<String, String> headers) async {
+  setDataFromHeaders(FileFetcherResponse response) async {
     //Without a cache-control header we keep the file for a week
     var ageDuration = new Duration(days: 7);
 
-    if (headers.containsKey("cache-control")) {
-      var cacheControl = headers["cache-control"];
+    if (response.hasHeader("cache-control")) {
+      var cacheControl = response.header("cache-control");
       var controlSettings = cacheControl.split(", ");
       controlSettings.forEach((setting) {
         if (setting.startsWith("max-age=")) {
@@ -104,13 +106,13 @@ class CacheObject {
     _map[_keyValidTill] =
         new DateTime.now().add(ageDuration).millisecondsSinceEpoch;
 
-    if (headers.containsKey("etag")) {
-      _map[_keyETag] = headers["etag"];
+    if (response.hasHeader("etag")) {
+      _map[_keyETag] = response.header("etag");
     }
 
     var fileExtension = "";
-    if (headers.containsKey("content-type")) {
-      var type = headers["content-type"].split("/");
+    if (response.hasHeader("content-type")) {
+      var type = response.header("content-type").split("/");
       if (type.length == 2) {
         fileExtension = ".${type[1]}";
       }
