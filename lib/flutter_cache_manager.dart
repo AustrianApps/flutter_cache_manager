@@ -18,7 +18,7 @@ import 'src/cache_object.dart';
 abstract class FileFetcherResponse {
   get statusCode;
 
-  Uint8List get bodyBytes => null;
+  Uint8List get bodyBytes;
 
   bool hasHeader(String name);
   String header(String name);
