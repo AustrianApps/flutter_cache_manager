@@ -16,7 +16,7 @@ import 'src/cache_object.dart';
 
 
 abstract class FileFetcherResponse {
-  get statusCode;
+  int get statusCode;
 
   Uint8List get bodyBytes;
 
@@ -43,8 +43,7 @@ class HttpFileFetcherResponse implements FileFetcherResponse {
   Uint8List get bodyBytes => _response.bodyBytes;
 
   @override
-  // TODO: implement statusCode
-  get statusCode => _response.bodyBytes;
+  get statusCode => _response.statusCode;
 
 }
 
@@ -311,7 +310,9 @@ class CacheManager {
     FileFetcherResponse response;
     try {
       response = await fileFetcher(url, headers: headers);
-    } catch (e) {}
+    } catch (e) {
+      rethrow;
+    }
     if (response != null) {
       if (response.statusCode == 200) {
         await newCache.setDataFromHeaders(response);
