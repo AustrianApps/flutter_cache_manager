@@ -26,8 +26,7 @@ class WebHelper {
   }
 
   ///Download the file from the url
-  Future<FileInfo> downloadFile(String url,
-      {Map<String, String> authHeaders, bool ignoreMemCache = false}) async {
+  Future<FileInfo> downloadFile(String url, {Map<String, String> authHeaders, bool ignoreMemCache = false}) async {
     if (!_memCache.containsKey(url) || ignoreMemCache) {
       var completer = new Completer<FileInfo>();
       _downloadRemoteFile(url, authHeaders: authHeaders).then((cacheObject) {
@@ -44,8 +43,7 @@ class WebHelper {
   }
 
   ///Download the file from the url
-  Future<FileInfo> _downloadRemoteFile(String url,
-      {Map<String, String> authHeaders}) async {
+  Future<FileInfo> _downloadRemoteFile(String url, {Map<String, String> authHeaders}) async {
     return Future.sync(() async {
       var cacheObject = await _store.retrieveCacheData(url);
       if (cacheObject == null) {
@@ -67,26 +65,22 @@ class WebHelper {
       success = await _handleHttpResponse(response, cacheObject);
 
       if (!success) {
-        throw HttpException(
-            "No valid statuscode. Statuscode was ${response?.statusCode}");
+        throw HttpException("No valid statuscode. Statuscode was ${response?.statusCode}");
       }
 
       _store.putFile(cacheObject);
       var filePath = p.join(await _store.filePath, cacheObject.relativePath);
 
-      return FileInfo(
-          new File(filePath), FileSource.Online, cacheObject.validTill, url);
+      return FileInfo(new File(filePath), FileSource.Online, cacheObject.validTill, url);
     });
   }
 
-  Future<FileFetcherResponse> _defaultHttpGetter(String url,
-      {Map<String, String> headers}) async {
+  Future<FileFetcherResponse> _defaultHttpGetter(String url, {Map<String, String> headers}) async {
     var httpResponse = await http.get(url, headers: headers);
     return new HttpFileFetcherResponse(httpResponse);
   }
 
-  Future<bool> _handleHttpResponse(
-      FileFetcherResponse response, CacheObject cacheObject) async {
+  Future<bool> _handleHttpResponse(FileFetcherResponse response, CacheObject cacheObject) async {
     if (response.statusCode == 200 || response.statusCode == 201) {
       var basePath = await _store.filePath;
       _setDataFromHeaders(cacheObject, response);
@@ -106,25 +100,8 @@ class WebHelper {
     return false;
   }
 
-  _setDataFromHeaders(
-      CacheObject cacheObject, FileFetcherResponse response) async {
-    //Without a cache-control header we keep the file for a week
-    var ageDuration = new Duration(days: 7);
-
-    if (response.hasHeader("cache-control")) {
-      var cacheControl = response.header("cache-control");
-      var controlSettings = cacheControl.split(", ");
-      controlSettings.forEach((setting) {
-        if (setting.startsWith("max-age=")) {
-          var validSeconds = int.tryParse(setting.split("=")[1]) ?? 0;
-          if (validSeconds > 0) {
-            ageDuration = new Duration(seconds: validSeconds);
-          }
-        }
-      });
-    }
-
-    cacheObject.validTill = new DateTime.now().add(ageDuration);
+  _setDataFromHeaders(CacheObject cacheObject, FileFetcherResponse response) async {
+    cacheObject.validTill = DateTime.now().add(response.maxAge);
 
     if (response.hasHeader("etag")) {
       cacheObject.eTag = response.header("etag");
